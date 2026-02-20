@@ -6,107 +6,224 @@
     <title>Now Playing - Small, Again</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Quicksand:wght@400;600;700&display=swap');
+        
+        :root {
+            --bg-dark: #1a1a2e;
+            --panel-bg: #2d3436;
+            --purple-accent: #a29bfe;
+            --yellow-accent: #facc15;
+            --indie-border: 4px solid #000000;
+        }
+
         body {
             font-family: 'Quicksand', sans-serif;
-            background: #0f172a;
+            background: var(--bg-dark);
             color: white;
             height: 100vh;
+            margin: 0;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        .bg-blur {
+        /* --- Minesweeper Background Layer --- */
+        #minesweeper-bg {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url('smallagain.png') no-repeat center center/cover;
-            filter: blur(60px) brightness(0.3);
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: -1;
-            transform: scale(1.1);
+            display: grid;
+            opacity: 0.3;
+            pointer-events: auto;
         }
 
-        .player-container {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 40px;
+        .mine-cell {
+            border: 1px solid rgba(162, 155, 254, 0.1);
+            background: rgba(0, 0, 0, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem; cursor: pointer; user-select: none;
+            box-sizing: border-box;
+        }
+        .mine-cell:hover { background: rgba(250, 204, 21, 0.2); }
+        .mine-cell.revealed { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); cursor: default; }
+        .mine-cell.mine { background: #ff7675; box-shadow: inset 0 0 10px #000; }
+
+        /* --- Player UI --- */
+        .player-box {
+            background: var(--panel-bg);
+            border: var(--indie-border);
+            box-shadow: 10px 10px 0px var(--purple-accent);
             width: 90%;
-            max-width: 500px;
-            padding: 40px;
+            max-width: 400px;
+            padding: 25px;
             text-align: center;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            position: relative; /* Added to help position internal elements if needed */
+            position: relative;
         }
 
-        .large-art {
-            width: 300px;
-            height: 300px;
-            margin: 0 auto 30px;
-            border-radius: 30px;
-            object-fit: cover;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            transition: transform 0.3s ease;
+        .box-title {
+            position: absolute;
+            top: -18px; left: 15px;
+            background: var(--purple-accent);
+            color: #1a1a2e;
+            padding: 2px 15px;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            border: var(--indie-border);
+            font-weight: bold;
         }
 
-        .is-playing .large-art {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
-        }
-
-        .progress-bar {
-            cursor: pointer;
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
+        .art-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 20px auto;
+            border: 4px solid #000;
+            background: #000;
+            box-shadow: 4px 4px 0px var(--yellow-accent);
             overflow: hidden;
-            margin: 25px 0;
         }
 
-        #progress-fill {
-            height: 100%;
-            background: #6366f1;
-            width: 0%;
+        .art-container img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.5s ease;
         }
+
+        .is-playing .art-container img {
+            transform: scale(1.05);
+        }
+        
+        .is-playing .art-container {
+            box-shadow: 4px 4px 0px var(--purple-accent);
+        }
+
+        h2 { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+        p { color: #a29bfe; font-family: 'VT323', monospace; font-size: 1.2rem; letter-spacing: 2px; }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 15px;
+            background: #000;
+            border: 2px solid #000;
+            margin: 20px 0;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--yellow-accent);
+            transition: width 0.1s linear;
+        }
+        
+        .is-playing .progress-fill {
+            background: var(--purple-accent);
+        }
+
+        .time-display {
+            display: flex; justify-content: space-between;
+            font-family: 'VT323', monospace; font-size: 1.1rem;
+            color: #f1f5f9; margin-top: -10px; margin-bottom: 15px;
+        }
+
+        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; }
+
+        .btn-ctrl {
+            background: var(--panel-bg);
+            color: white;
+            border: 2px solid #000;
+            width: 45px; height: 45px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; cursor: pointer;
+            box-shadow: 2px 2px 0px #000;
+            transition: all 0.1s;
+        }
+
+        .btn-play-main {
+            background: var(--yellow-accent);
+            color: #000;
+            width: 60px; height: 60px;
+            font-size: 1.5rem;
+        }
+
+        .btn-ctrl:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0px #000; }
+        .btn-play-main:hover { background: white; }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--panel-bg);
+            color: white;
+            border: var(--indie-border);
+            padding: 5px 15px;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            text-decoration: none;
+            box-shadow: 4px 4px 0px var(--purple-accent);
+            transition: all 0.1s;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px var(--yellow-accent);
+            color: var(--yellow-accent);
+        }
+
     </style>
 </head>
 <body>
 
-    <div class="bg-blur"></div>
+    <a href="https://beepsmol.com/music" class="back-btn">
+        <i class="fas fa-arrow-left"></i> BACK
+    </a>
 
-    <div class="player-container" id="player">
-        <a href="https://beepsmol.com/music" class="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors bg-white/10 px-4 py-1.5 rounded-full backdrop-blur-md mb-6 text-sm">
-            <i class="fas fa-arrow-left text-xs"></i>
-            <span>Back to Music</span>
-        </a>
+    <div id="minesweeper-bg"></div>
 
-        <img src="smallagain.png" alt="Small, Again" class="large-art">
+    <audio id="audio" src="smallagain.mp3"></audio>
+
+    <div class="player-box" id="player">
+        <span class="box-title">NOW_PLAYING</span>
         
-        <h1 class="text-3xl font-bold mb-1">Small, Again</h1>
-        <p class="text-indigo-300 font-medium mb-6">BeepSmol</p>
-
-        <div class="progress-bar" id="progress-container">
-            <div id="progress-fill"></div>
+        <div class="art-container">
+            <img src="smallagain.png" onerror="this.src='https://via.placeholder.com/200/000/a29bfe?text=AUDIO'" alt="Cover Art">
         </div>
 
-        <div class="flex justify-between text-xs text-white/50 -mt-4 mb-8">
+        <h2>Small, Again</h2>
+        <p>BEEPSMOL</p>
+
+        <div class="progress-bar-container" id="progress-container">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        
+        <div class="time-display">
             <span id="current-time">0:00</span>
             <span id="duration">0:00</span>
         </div>
 
-        <div class="flex items-center justify-center gap-8">
-            <button onclick="changeTime(-10)" class="text-2xl text-white/80 hover:text-white"><i class="fas fa-undo"></i></button>
-            <button id="play-btn" onclick="togglePlay()" class="w-20 h-20 bg-indigo-600 hover:bg-indigo-500 rounded-full text-3xl shadow-lg flex items-center justify-center">
+        <div class="controls">
+            <button class="btn-ctrl" onclick="changeTime(-15)" title="Rewind 15s">
+                <i class="fas fa-undo"></i>
+            </button>
+            <button class="btn-ctrl btn-play-main" id="play-btn" onclick="togglePlay()">
                 <i class="fas fa-play ml-1"></i>
             </button>
-            <button onclick="changeTime(10)" class="text-2xl text-white/80 hover:text-white"><i class="fas fa-redo"></i></button>
+            <button class="btn-ctrl" onclick="changeTime(15)" title="Forward 15s">
+                <i class="fas fa-redo"></i>
+            </button>
         </div>
     </div>
 
     <script>
-        const audio = new Audio('smallagain.mp3');
+        // --- Player Logic ---
+        const audio = document.getElementById('audio');
         const playBtn = document.getElementById('play-btn');
         const progressFill = document.getElementById('progress-fill');
         const progressContainer = document.getElementById('progress-container');
@@ -127,12 +244,27 @@
         audio.ontimeupdate = () => {
             const pct = (audio.currentTime / audio.duration) * 100;
             progressFill.style.width = `${pct}%`;
-            
             document.getElementById('current-time').innerText = formatTime(audio.currentTime);
-            if(audio.duration) document.getElementById('duration').innerText = formatTime(audio.duration);
+            
+            if(audio.duration && document.getElementById('duration').innerText === "0:00") {
+                document.getElementById('duration').innerText = formatTime(audio.duration);
+            }
         };
 
+        // Get duration when metadata loads
+        audio.onloadedmetadata = () => {
+             document.getElementById('duration').innerText = formatTime(audio.duration);
+        };
+
+        audio.onended = () => {
+            playBtn.innerHTML = '<i class="fas fa-play ml-1"></i>';
+            player.classList.remove('is-playing');
+            progressFill.style.width = `0%`;
+            audio.currentTime = 0;
+        }
+
         function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
             const min = Math.floor(seconds / 60);
             const sec = Math.floor(seconds % 60);
             return `${min}:${sec < 10 ? '0' : ''}${sec}`;
@@ -146,8 +278,74 @@
             const width = progressContainer.clientWidth;
             const clickX = e.offsetX;
             const duration = audio.duration;
-            audio.currentTime = (clickX / width) * duration;
+            if (duration) {
+                audio.currentTime = (clickX / width) * duration;
+            }
         });
+
+        // --- Minesweeper BG Logic ---
+        const bg = document.getElementById('minesweeper-bg');
+        const cellSize = 40;
+        const mineProbability = 0.12;
+        let rows, cols;
+
+        function initGame() {
+            bg.innerHTML = '';
+            cols = Math.ceil(window.innerWidth / cellSize);
+            rows = Math.ceil(window.innerHeight / cellSize);
+            bg.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+            const grid = [];
+            for (let r = 0; r < rows; r++) {
+                grid[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    const isMine = Math.random() < mineProbability;
+                    const cell = document.createElement('div');
+                    cell.className = 'mine-cell';
+                    grid[r][c] = { isMine, revealed: false, element: cell };
+                    cell.addEventListener('click', () => reveal(r, c, grid));
+                    bg.appendChild(cell);
+                }
+            }
+        }
+
+        function reveal(r, c, grid) {
+            const cell = grid[r][c];
+            if (cell.revealed) return;
+            cell.revealed = true;
+            cell.element.classList.add('revealed');
+            if (cell.isMine) {
+                cell.element.innerHTML = '💣';
+                cell.element.classList.add('mine');
+                setTimeout(initGame, 2000);
+            } else {
+                const count = countMines(r, c, grid);
+                if (count > 0) {
+                    cell.element.innerHTML = count;
+                    cell.element.style.color = ['','#74b9ff','#55efc4','#ff7675','#a29bfe','#fdcb6e','#81ecec','#ffeaa7','#dfe6e9'][count];
+                } else {
+                    for (let i = -1; i <= 1; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            const nr = r + i, nc = c + j;
+                            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) reveal(nr, nc, grid);
+                        }
+                    }
+                }
+            }
+        }
+
+        function countMines(r, c, grid) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const nr = r + i, nc = c + j;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].isMine) count++;
+                }
+            }
+            return count;
+        }
+
+        window.addEventListener('resize', initGame);
+        window.onload = initGame;
     </script>
 </body>
 </html>
