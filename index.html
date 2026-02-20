@@ -1,304 +1,337 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="icon" type="image/x-icon" href="icon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BeepSmol (music)</title> 
+    <title>BeepSmol | Music</title> 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Quicksand:wght@400;700&display=swap');
         
+        :root {
+            --bg-dark: #1a1a2e;
+            --panel-bg: #2d3436;
+            --text-main: #f1f5f9;
+            --purple-accent: #a29bfe;
+            --yellow-accent: #facc15;
+            --indie-border: 4px solid #000000;
+        }
+
         body {
             font-family: 'Quicksand', sans-serif;
-            background-color: #0f172a; 
-            background: radial-gradient(circle at top left, #e46f108f, #cabc008a), #0f172a; 
-            color: #f1f5f9;
-            min-height: 100vh;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
 
-        .song-card {
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background: rgba(30, 41, 59, 0.5);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
+        /* --- Minesweeper Background Layer --- */
+        #minesweeper-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            display: grid;
+            opacity: 0.3;
+            pointer-events: auto;
+            justify-content: center;
+            align-content: start;
         }
 
-        .song-card.active {
-            background: rgba(99, 102, 241, 0.2);
-            border-color: rgba(99, 102, 241, 0.5);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
-        }
-
-        .song-card:hover {
-            transform: scale(1.02);
-            background: rgba(66, 51, 85, 0.8);
-            border-color: rgba(172, 42, 247, 0.4);
-            box-shadow: 0 25px 50px -12px rgba(105, 55, 9, 0.5);
-        }
-
-        .cover-art {
-            aspect-ratio: 1 / 1;
-            object-fit: cover;
-            border-radius: 18px;
-            transition: transform 0.5s ease;
-        }
-
-        .playing .cover-art {
-            animation: pulse 2s infinite ease-in-out;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-            100% { transform: scale(1); }
-        }
-
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-
-        .fullscreen-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(0,0,0,0.6);
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+        .mine-cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(162, 155, 254, 0.1);
+            background: rgba(0, 0, 0, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-            z-index: 20;
-            color: white;
-            text-decoration: none;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.1s;
+            box-sizing: border-box;
         }
 
-        .song-card:hover .fullscreen-btn {
-            opacity: 1;
-            transform: translateY(0);
+        .mine-cell:hover { background: rgba(250, 204, 21, 0.2); }
+        .mine-cell.revealed { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); cursor: default; }
+        .mine-cell.mine { background: #ff7675; box-shadow: inset 0 0 10px #000; }
+
+        /* --- Main Layout --- */
+        .site-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+            pointer-events: none; 
         }
-        
-        .nav-container {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 1000px; background-color: #fffcf5;
-            padding: 12px 30px; border-radius: 50px; display: flex;
-            justify-content: space-between; align-items: center;
-            box-shadow: 0 8px 30px rgba(93, 74, 68, 0.15); z-index: 9999;
+
+        .site-container > * { pointer-events: auto; }
+
+        .content-box {
+            background: var(--panel-bg);
+            border: var(--indie-border);
+            margin-bottom: 30px;
+            box-shadow: 8px 8px 0px var(--purple-accent);
+            position: relative;
         }
-        .logo { font-size: 1.3rem; font-weight: 700; color: #d97757; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-        .logo-icon { width: 24px; height: 24px; object-fit: contain; }
-        .nav-links { display: flex; gap: 25px; list-style: none; }
-        .nav-links a { text-decoration: none; color: #5d4a44; font-weight: 600; padding: 8px 15px; border-radius: 20px; }
-        @media (max-width: 768px) { .nav-links { display: none; } }
+
+        .box-title {
+            background: var(--purple-accent);
+            color: #1a1a2e;
+            padding: 2px 15px;
+            font-family: 'VT323', monospace;
+            font-size: 1.5rem;
+            display: inline-block;
+            margin-top: -18px;
+            margin-left: 15px;
+            border: var(--indie-border);
+            font-weight: bold;
+        }
+
+        .box-body { padding: 25px; }
+
+        /* Song Cards */
+        .song-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .song-card {
+            background: #1a1a2e;
+            border: 3px solid #000;
+            padding: 15px;
+            box-shadow: 4px 4px 0px var(--yellow-accent);
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        .song-card.playing {
+            box-shadow: 4px 4px 0px var(--purple-accent);
+            border-color: var(--purple-accent);
+        }
+
+        .song-thumb-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #000;
+            border: 2px solid #000;
+            margin-bottom: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .song-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .song-card:hover .song-thumb { transform: scale(1.05); }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #000;
+            border: 2px solid #000;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--yellow-accent);
+            transition: width 0.1s linear;
+        }
+
+        .song-card.playing .progress-fill { background: var(--purple-accent); }
+
+        .btn-group {
+            margin-top: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-play {
+            flex: 2;
+            background: var(--yellow-accent);
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 2px solid #000;
+            box-shadow: 2px 2px 0px #000;
+            text-transform: uppercase;
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            transition: all 0.1s;
+            cursor: pointer;
+        }
+
+        .btn-fullscreen {
+            flex: 1;
+            background: var(--panel-bg);
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 2px solid #000;
+            box-shadow: 2px 2px 0px #000;
+            font-size: 1.1rem;
+            transition: all 0.1s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-play:hover, .btn-fullscreen:hover { background: white; color: #000; transform: translate(-1px, -1px); box-shadow: 3px 3px 0px #000; }
+        .song-card.playing .btn-play { background: var(--purple-accent); color: white; }
+
+        footer {
+            margin: 50px 0;
+            text-align: center;
+            font-family: 'VT323', monospace;
+            color: var(--yellow-accent);
+            background: #000;
+            padding: 10px 20px;
+            border: 2px solid var(--purple-accent);
+            display: block;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h3 { color: white; font-weight: bold; font-size: 1.25rem; margin-bottom: 4px; }
     </style>
 </head>
-<body class="p-6 md:p-12">
-  <style>
-  :root {
-    --cozy-bg: #fffcf5;       /* Warm cream */
-    --cozy-text: #5d4a44;     /* Soft brown */
-    --cozy-accent: #d97757;   /* Muted terracotta */
-    --cozy-shadow: 0 8px 30px rgba(93, 74, 68, 0.15);
-    --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
+<body>
 
-  .nav-container {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1000px;
-    background-color: var(--cozy-bg);
-    padding: 12px 30px;
-    border-radius: 50px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: var(--cozy-shadow);
-    z-index: 9999;
-    font-family: 'Quicksand', 'Segoe UI', sans-serif;
-    transition: var(--transition);
-  }
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=VT323&family=Quicksand:wght@400;700&display=swap');
+    
+    :root {
+        --bg-dark: #1a1a2e;
+        --panel-dark: #2d3436;
+        --purple-accent: #a29bfe;
+        --yellow-accent: #facc15;
+        --indie-border: 4px solid #000000;
+    }
 
-  .nav-container.shrunk {
-    top: 10px;
-    padding: 8px 25px;
-    width: 85%;
-    background-color: #ffffff;
-  }
+    .nav-wrapper {
+        background: var(--bg-dark);
+        border-bottom: var(--indie-border);
+        padding: 15px 10px;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        text-align: center;
+        box-shadow: 0 6px 0px var(--purple-accent);
+    }
 
-  .logo {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: var(--cozy-accent);
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+    .nav-title {
+        font-family: 'VT323', monospace;
+        font-size: 2.8rem;
+        color: var(--yellow-accent);
+        text-shadow: 3px 3px 0px #000;
+        margin-bottom: 12px;
+        display: block;
+        text-decoration: none;
+        letter-spacing: 2px;
+    }
 
-  /* Specific styling for your .ico file */
-  .logo-icon {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-    border-radius: 4px; /* Optional: adds a tiny roundness to the icon */
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 25px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .nav-links a {
-    text-decoration: none;
-    color: var(--cozy-text);
-    font-weight: 600;
-    font-size: 0.95rem;
-    padding: 8px 15px;
-    border-radius: 20px;
-    transition: var(--transition);
-  }
-
-  .nav-links a:hover {
-    background-color: #f3ece4;
-    color: var(--cozy-accent);
-    transform: translateY(-2px);
-  }
-
-  .cozy-burger {
-    display: none;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 5px;
-  }
-
-  .cozy-burger div {
-    width: 22px;
-    height: 3px;
-    background: var(--cozy-text);
-    margin: 4px;
-    border-radius: 3px;
-    transition: 0.3s;
-  }
-
-  @media (max-width: 768px) {
-    .cozy-burger { display: block; }
     .nav-links {
-      position: absolute;
-      top: 70px;
-      right: 0;
-      background: var(--cozy-bg);
-      flex-direction: column;
-      width: 200px;
-      padding: 20px;
-      border-radius: 25px;
-      box-shadow: var(--cozy-shadow);
-      transform: scale(0);
-      transform-origin: top right;
-      transition: var(--transition);
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
     }
-    .nav-links.active {
-      transform: scale(1);
+
+    .nav-links a {
+        background: var(--purple-accent);
+        color: #1a1a2e;
+        border: 2px solid #000;
+        padding: 6px 16px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 0.9rem;
+        font-family: 'Quicksand', sans-serif;
+        box-shadow: 3px 3px 0px #000;
+        transition: all 0.1s;
+        text-transform: uppercase;
     }
-  }
+
+    .nav-links a:hover {
+        background: var(--yellow-accent);
+        transform: translate(-2px, -2px);
+        box-shadow: 5px 5px 0px #000;
+    }
+
+    .nav-links a:active {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0px #000;
+    }
 </style>
 
-<nav class="nav-container" id="main-nav">
-  <a href="https://beepsmol.com" class="logo">
-    <img src="icon.ico" alt="Logo" class="logo-icon"> 
-    BeepSmol
-  </a>
-  
-  <ul class="nav-links" id="nav-list">
-    <li><a href="https://beepsmol.com">Home</a></li>
-    <li><a href="https://beepsmol.com/games">Games</a></li>
-    <li><a href="https://beepsmol.com/music">Music</a></li>
-    <li><a href="https://beepsmol.com/links">Links</a></li>
-    <li><a href="https://beepsmol.com/blog">Blog</a></li>
-  </ul>
+<div class="nav-wrapper">
+    <a href="index.html" class="nav-title">BEEPSMOL.COM</a>
+    <div class="nav-links">
+        <a href="https://beepsmol.com">Home</a></li>
+        <a href="https://beepsmol.com/games">Games</a>
+        <a href="https://beepsmol.com/music">Music</a>
+        <a href="https://beepsmol.com/links">Links</a>
+        <a href="https://beepsmol.com/blog">Blog</a>
+      </div>
+</div>
 
-  <button class="cozy-burger" id="menu-btn">
-    <div></div>
-    <div></div>
-    <div></div>
-  </button>
-</nav>
-
-<script>
-  const nav = document.getElementById('main-nav');
-  const btn = document.getElementById('menu-btn');
-  const list = document.getElementById('nav-list');
-
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 40) {
-      nav.classList.add('shrunk');
-    } else {
-      nav.classList.remove('shrunk');
-    }
-  });
-
-  btn.addEventListener('click', () => {
-    list.classList.toggle('active');
-  });
-
-  document.querySelectorAll('.nav-links a').forEach(link => {
-    link.addEventListener('click', () => list.classList.remove('active'));
-  });
-</script>
-
-    <main class="max-w-6xl mx-auto pt-24">
-        <div class="mb-12">
-            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2">My Music</h1>
-            <p class="text-slate-400 text-lg">All the songs and beats I've made public.</p>
+    <div id="minesweeper-bg"></div>
+    
+    <div class="site-container">
+        <div class="content-box">
+            <span class="box-title">MUSIC_ARCHIVE</span>
+            <div class="box-body">
+                <p class="mb-8 text-gray-300 italic font-medium">Listen to original tracks and projects.</p>
+                
+                <div id="song-grid" class="song-grid">
+                    <!-- Songs injected here -->
+                </div>
+            </div>
         </div>
 
-        <div id="songs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <!-- Songs injected here -->
-        </div>
-    </main>
+        <footer>
+            <p>BEEPSMOL &copy; 2026</p>
+        </footer>
+    </div>
 
     <script>
-        /**
-         * EASY ADD: Just add a new object to this array to add a new song panel.
-         * The 'playerUrl' should point to the HTML file for that song's large player.
-         */
-        const SONGS_DATA = [
+        // --- Song Data ---
+        const songs = [
             {
                 title: "Small, Again",
-                artist: "BeepSmol",
-                audio: "smallagain.mp3", 
-                image: "smallagain.png",
-                genre: "Lo-Fi",
-                playerUrl: "https://beepsmol.com/music/smallagain.html"
+                audio: "smallagain.mp3",
+                cover: "smallagain.png",
+                duration: "2:14",
+                snippetUrl: "https://beepsmol.com/music/smallagain.html"
             },
-            { 
-                title: "Coming Soon", 
-                artist: "BeepSmol", 
-                audio: "song.mp3", 
-                image: "placeholder.png", 
-                genre: "N/A",
-                playerUrl: "https://beepsmol.com/music" 
-            },
-            { 
-                title: "Coming Soon", 
-                artist: "BeepSmol", 
-                audio: "song.mp3", 
-                image: "placeholder.png", 
-                genre: "N/A",
-                playerUrl: "https://beepsmol.com/music" 
+            {
+                title: "A Little Less Smol",
+                audio: "#",
+                cover: "placeholder.png",
+                duration: "--:--",
+                snippetUrl: "#"
             }
         ];
 
@@ -306,56 +339,59 @@
         let currentIdx = null;
 
         function renderSongs() {
-            const grid = document.getElementById('songs-grid');
-            grid.innerHTML = '';
-
-            SONGS_DATA.forEach((song, index) => {
-                const card = document.createElement('div');
-                card.id = `card-${index}`;
-                card.className = 'song-card p-5 flex flex-col group relative';
-                
-                card.innerHTML = `
-                    <div class="relative mb-4 overflow-hidden rounded-xl">
-                        <!-- EVERY PANEL HAS FULLSCREEN BUTTON -->
-                        <a href="${song.playerUrl}" class="fullscreen-btn" title="Open Full Player">
-                            <i class="fas fa-expand"></i>
-                        </a>
-                        
-                        <img src="${song.image}" alt="${song.title}" class="cover-art w-full shadow-lg" onerror="this.src='https://via.placeholder.com/300x300/1e293b/ffffff?text=No+Cover'">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                             <i class="fas fa-music text-white text-3xl"></i>
-                        </div>
+            const grid = document.getElementById('song-grid');
+            grid.innerHTML = songs.map((song, index) => `
+                <div class="song-card" id="card-${index}">
+                    <div class="song-thumb-container">
+                        <img src="${song.cover}" 
+                             onerror="this.src='https://via.placeholder.com/400/000/a29bfe?text=AUDIO'" 
+                             alt="${song.title}" class="song-thumb">
                     </div>
+                    <h3>${song.title}</h3>
+                    <p class="text-slate-400 text-sm font-bold font-[VT323] text-lg tracking-widest">${song.duration}</p>
                     
-                    <div class="flex flex-col flex-grow">
-                        <div class="flex justify-between items-start mb-1">
-                            <h3 class="text-lg font-bold text-white truncate pr-2">${song.title}</h3>
-                            <span class="text-[10px] uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded text-slate-300">${song.genre}</span>
-                        </div>
-                        <p class="text-slate-400 text-sm mb-6">${song.artist}</p>
-                        
-                        <div class="mt-auto flex items-center gap-4">
-                            <button id="btn-${index}" onclick="handlePlayClick(${index})" class="w-12 h-12 flex-shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full flex items-center justify-center transition-all shadow-lg shadow-indigo-500/20">
-                                <i class="fas fa-play ml-1"></i>
-                            </button>
-                            <div class="flex-grow h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div id="progress-${index}" class="h-full bg-indigo-400 w-0 transition-all duration-300"></div>
-                            </div>
-                        </div>
+                    <div class="progress-bar-bg">
+                        <div id="progress-${index}" class="progress-fill"></div>
                     </div>
-                `;
-                grid.appendChild(card);
-            });
+
+                    <div class="btn-group">
+                        <button id="btn-${index}" class="btn-play" onclick="togglePlay(${index})">
+                            <i class="fas fa-play ml-1"></i> Play
+                        </button>
+                        <button class="btn-fullscreen" onclick="goToSnippet(${index})" title="Fullscreen Mode">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        function handlePlayClick(index) {
-            const song = SONGS_DATA[index];
+        function goToSnippet(index) {
+            const song = songs[index];
+            if (song.snippetUrl === '#') {
+                alert("Fullscreen mode not available for this preview.");
+                return;
+            }
+            window.location.href = song.snippetUrl;
+        }
+
+        function togglePlay(index) {
+            const song = songs[index];
+            if (song.audio === '#') {
+                alert("This track is not available yet!");
+                return;
+            }
+
             if (currentIdx === index && currentAudio) {
-                if (currentAudio.paused) currentAudio.play();
-                else currentAudio.pause();
+                if (currentAudio.paused) {
+                    currentAudio.play();
+                } else {
+                    currentAudio.pause();
+                }
                 updateUI(index);
                 return;
             }
+
             if (currentAudio) {
                 currentAudio.pause();
                 const oldIdx = currentIdx;
@@ -363,15 +399,27 @@
                 currentIdx = null;
                 updateUI(oldIdx);
             }
+
             currentIdx = index;
             currentAudio = new Audio(song.audio);
             currentAudio.play();
+            
             currentAudio.ontimeupdate = () => {
                 const pb = document.getElementById(`progress-${index}`);
-                if (pb && currentAudio.duration) pb.style.width = (currentAudio.currentTime / currentAudio.duration) * 100 + '%';
+                if (pb && currentAudio.duration) {
+                    pb.style.width = (currentAudio.currentTime / currentAudio.duration) * 100 + '%';
+                }
             };
+
             currentAudio.onplay = () => updateUI(index);
             currentAudio.onpause = () => updateUI(index);
+            
+            currentAudio.onended = () => {
+                const pb = document.getElementById(`progress-${index}`);
+                if (pb) pb.style.width = '0%';
+                updateUI(index);
+            };
+
             updateUI(index);
         }
 
@@ -379,17 +427,85 @@
             const btn = document.getElementById(`btn-${index}`);
             const card = document.getElementById(`card-${index}`);
             if (!btn || !card) return;
-            const icon = btn.querySelector('i');
+            
             if (currentIdx === index && currentAudio && !currentAudio.paused) {
-                icon.className = 'fas fa-pause';
-                card.classList.add('active', 'playing');
+                btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                card.classList.add('playing');
             } else {
-                icon.className = 'fas fa-play ml-1';
-                card.classList.remove('active', 'playing');
+                btn.innerHTML = '<i class="fas fa-play ml-1"></i> Play';
+                card.classList.remove('playing');
             }
         }
 
-        window.onload = renderSongs;
+        // --- Minesweeper Background Logic ---
+        const bg = document.getElementById('minesweeper-bg');
+        const cellSize = 40;
+        const mineProbability = 0.12;
+        let rows, cols;
+
+        function initGame() {
+            bg.innerHTML = '';
+            cols = Math.ceil(window.innerWidth / cellSize);
+            rows = Math.ceil(window.innerHeight / cellSize);
+            bg.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+            const grid = [];
+            for (let r = 0; r < rows; r++) {
+                grid[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    const isMine = Math.random() < mineProbability;
+                    const cell = document.createElement('div');
+                    cell.className = 'mine-cell';
+                    grid[r][c] = { isMine, revealed: false, element: cell };
+                    cell.addEventListener('click', (e) => {
+                        e.stopPropagation(); 
+                        reveal(r, c, grid);
+                    });
+                    bg.appendChild(cell);
+                }
+            }
+        }
+
+        function reveal(r, c, grid) {
+            const cell = grid[r][c];
+            if (cell.revealed) return;
+            cell.revealed = true;
+            cell.element.classList.add('revealed');
+            if (cell.isMine) {
+                cell.element.innerHTML = '💣';
+                cell.element.classList.add('mine');
+                setTimeout(initGame, 2000);
+            } else {
+                const count = countMines(r, c, grid);
+                if (count > 0) {
+                    cell.element.innerHTML = count;
+                    cell.element.style.color = ['','#74b9ff','#55efc4','#ff7675','#a29bfe','#fdcb6e','#81ecec','#ffeaa7','#dfe6e9'][count];
+                } else {
+                    for (let i = -1; i <= 1; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            const nr = r + i, nc = c + j;
+                            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) reveal(nr, nc, grid);
+                        }
+                    }
+                }
+            }
+        }
+
+        function countMines(r, c, grid) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const nr = r + i, nc = c + j;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].isMine) count++;
+                }
+            }
+            return count;
+        }
+
+        window.addEventListener('resize', initGame);
+        window.onload = () => {
+            initGame();
+            renderSongs();
+        };
     </script>
 </body>
 </html>
