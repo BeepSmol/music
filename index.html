@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Quicksand:wght@400;700&display=swap');
-        
         :root {
             --bg-dark: #1a1a2e;
             --panel-bg: #2d3436;
@@ -20,7 +18,7 @@
         }
 
         body {
-            font-family: 'Quicksand', sans-serif;
+            font-family: sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
             margin: 0;
@@ -37,7 +35,7 @@
             height: 100%;
             z-index: 0;
             display: grid;
-            opacity: 0.3;
+            opacity: 0.5;
             pointer-events: auto;
             justify-content: center;
             align-content: start;
@@ -46,22 +44,26 @@
         .mine-cell {
             width: 40px;
             height: 40px;
-            border: 1px solid rgba(162, 155, 254, 0.1);
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--purple-accent);
+            border-top: 3px solid rgba(255,255,255,0.4);
+            border-left: 3px solid rgba(255,255,255,0.4);
+            border-bottom: 3px solid rgba(0,0,0,0.4);
+            border-right: 3px solid rgba(0,0,0,0.4);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'VT323', monospace;
-            font-size: 1.2rem;
+            font-family: sans-serif;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: black;
             cursor: pointer;
             user-select: none;
-            transition: background 0.1s;
             box-sizing: border-box;
         }
 
-        .mine-cell:hover { background: rgba(250, 204, 21, 0.2); }
-        .mine-cell.revealed { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); cursor: default; }
-        .mine-cell.mine { background: #ff7675; box-shadow: inset 0 0 10px #000; }
+        .mine-cell:hover { background: var(--yellow-accent); }
+        .mine-cell.revealed { background: rgba(0,0,0,0.2); border: 1px solid var(--purple-accent); cursor: default; }
+        .mine-cell.mine { background: red; }
 
         /* --- Main Layout --- */
         .site-container {
@@ -79,7 +81,6 @@
             background: var(--panel-bg);
             border: var(--indie-border);
             margin-bottom: 30px;
-            box-shadow: 8px 8px 0px var(--purple-accent);
             position: relative;
         }
 
@@ -87,7 +88,7 @@
             background: var(--purple-accent);
             color: #1a1a2e;
             padding: 2px 15px;
-            font-family: 'VT323', monospace;
+            font-family: sans-serif;
             font-size: 1.5rem;
             display: inline-block;
             margin-top: -18px;
@@ -109,7 +110,6 @@
             background: #1a1a2e;
             border: 3px solid #000;
             padding: 15px;
-            box-shadow: 4px 4px 0px var(--yellow-accent);
             transition: all 0.2s;
             display: flex;
             flex-direction: column;
@@ -118,7 +118,6 @@
         }
 
         .song-card.playing {
-            box-shadow: 4px 4px 0px var(--purple-accent);
             border-color: var(--purple-accent);
         }
 
@@ -175,7 +174,7 @@
             border: 2px solid #000;
             box-shadow: 2px 2px 0px #000;
             text-transform: uppercase;
-            font-family: 'VT323', monospace;
+            font-family: sans-serif;
             font-size: 1.2rem;
             transition: all 0.1s;
             cursor: pointer;
@@ -204,7 +203,7 @@
         footer {
             margin: 50px 0;
             text-align: center;
-            font-family: 'VT323', monospace;
+            font-family: sans-serif;
             color: var(--yellow-accent);
             background: #000;
             padding: 10px 20px;
@@ -221,8 +220,6 @@
 <body>
 
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=VT323&family=Quicksand:wght@400;700&display=swap');
-    
     :root {
         --bg-dark: #1a1a2e;
         --panel-dark: #2d3436;
@@ -239,18 +236,16 @@
         top: 0;
         z-index: 1000;
         text-align: center;
-        box-shadow: 0 6px 0px var(--purple-accent);
     }
 
     .nav-title {
-        font-family: 'VT323', monospace;
+        font-family: sans-serif;
         font-size: 2.8rem;
         color: var(--yellow-accent);
         text-shadow: 3px 3px 0px #000;
         margin-bottom: 12px;
         display: block;
         text-decoration: none;
-        letter-spacing: 2px;
     }
 
     .nav-links {
@@ -267,8 +262,7 @@
         padding: 6px 16px;
         text-decoration: none;
         font-weight: bold;
-        font-size: 0.9rem;
-        font-family: 'Quicksand', sans-serif;
+        font-size: 1.2rem;
         box-shadow: 3px 3px 0px #000;
         transition: all 0.1s;
         text-transform: uppercase;
@@ -289,8 +283,8 @@
 <div class="nav-wrapper">
     <a href="index.html" class="nav-title">BEEPSMOL.COM</a>
     <div class="nav-links">
-        <a href="https://beepsmol.com">Home</a></li>
-        <a href="https://beepsmol.com/projects">Projects</a>
+        <a href="https://beepsmol.com">Home</a>
+        <a href="https://beepsmol.com/games">Games</a>
         <a href="https://beepsmol.com/music">Music</a>
         <a href="https://beepsmol.com/links">Links</a>
         <a href="https://beepsmol.com/blog">Blog</a>
@@ -348,7 +342,7 @@
                              alt="${song.title}" class="song-thumb">
                     </div>
                     <h3>${song.title}</h3>
-                    <p class="text-slate-400 text-sm font-bold font-[VT323] text-lg tracking-widest">${song.duration}</p>
+                    <p class="text-slate-400 text-sm font-bold font-sans text-lg tracking-widest">${song.duration}</p>
                     
                     <div class="progress-bar-bg">
                         <div id="progress-${index}" class="progress-fill"></div>
@@ -478,7 +472,7 @@
                 const count = countMines(r, c, grid);
                 if (count > 0) {
                     cell.element.innerHTML = count;
-                    cell.element.style.color = ['','#74b9ff','#55efc4','#ff7675','#a29bfe','#fdcb6e','#81ecec','#ffeaa7','#dfe6e9'][count];
+                    cell.element.style.color = ['','#60a5fa','#4ade80','#f87171','#c084fc','#fbbf24','#22d3ee','#e879f9','#9ca3af'][count];
                 } else {
                     for (let i = -1; i <= 1; i++) {
                         for (let j = -1; j <= 1; j++) {
