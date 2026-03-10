@@ -14,7 +14,7 @@
             --text-main: #f1f5f9;
             --purple-accent: #a29bfe;
             --yellow-accent: #facc15;
-            --indie-border: 4px solid #000000;
+            --indie-border: 1px solid #000;
         }
 
         body {
@@ -24,6 +24,10 @@
             margin: 0;
             padding: 0;
             overflow-x: hidden;
+            border: ridge rgb(175, 148, 29) 20px;
+            background-image: url('placeholder.png');
+            background-repeat: repeat; /* This is the default, but ensures tiling */
+            background-size: 100px 100px; /* Adjust this to control the size of each grid square */
         }
 
         /* --- Minesweeper Background Layer --- */
@@ -82,6 +86,7 @@
             border: var(--indie-border);
             margin-bottom: 30px;
             position: relative;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
         }
 
         .box-title {
@@ -225,7 +230,7 @@
         --panel-dark: #2d3436;
         --purple-accent: #a29bfe;
         --yellow-accent: #facc15;
-        --indie-border: 4px solid #000000;
+        --indie-border: 1px solid #000;
     }
 
     .nav-wrapper {
@@ -284,14 +289,12 @@
     <a href="index.html" class="nav-title">BEEPSMOL.COM</a>
     <div class="nav-links">
         <a href="https://beepsmol.com">Home</a>
-        <a href="https://beepsmol.com/projects">Projects</a>
+        <a href="https://beepsmol.com/games">Games</a>
         <a href="https://beepsmol.com/music">Music</a>
         <a href="https://beepsmol.com/blog">Blog</a>
       </div>
 </div>
 
-    <div id="minesweeper-bg"></div>
-    
     <div class="site-container">
         <div class="content-box">
             <span class="box-title">MUSIC_ARCHIVE</span>
@@ -430,77 +433,11 @@
             }
         }
 
-        // --- Minesweeper Background Logic ---
-        const bg = document.getElementById('minesweeper-bg');
-        const cellSize = 40;
-        const mineProbability = 0.12;
-        let rows, cols;
-
-        function initGame() {
-            bg.innerHTML = '';
-            cols = Math.ceil(window.innerWidth / cellSize);
-            rows = Math.ceil(window.innerHeight / cellSize);
-            bg.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
-            const grid = [];
-            for (let r = 0; r < rows; r++) {
-                grid[r] = [];
-                for (let c = 0; c < cols; c++) {
-                    const isMine = Math.random() < mineProbability;
-                    const cell = document.createElement('div');
-                    cell.className = 'mine-cell';
-                    grid[r][c] = { isMine, revealed: false, element: cell };
-                    cell.addEventListener('click', (e) => {
-                        e.stopPropagation(); 
-                        reveal(r, c, grid);
-                    });
-                    bg.appendChild(cell);
-                }
-            }
-        }
-
-        function reveal(r, c, grid) {
-            const cell = grid[r][c];
-            if (cell.revealed) return;
-            cell.revealed = true;
-            cell.element.classList.add('revealed');
-            if (cell.isMine) {
-                cell.element.innerHTML = '💣';
-                cell.element.classList.add('mine');
-                setTimeout(initGame, 2000);
-            } else {
-                const count = countMines(r, c, grid);
-                if (count > 0) {
-                    cell.element.innerHTML = count;
-                    cell.element.style.color = ['','#60a5fa','#4ade80','#f87171','#c084fc','#fbbf24','#22d3ee','#e879f9','#9ca3af'][count];
-                } else {
-                    for (let i = -1; i <= 1; i++) {
-                        for (let j = -1; j <= 1; j++) {
-                            const nr = r + i, nc = c + j;
-                            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) reveal(nr, nc, grid);
-                        }
-                    }
-                }
-            }
-        }
-
-        function countMines(r, c, grid) {
-            let count = 0;
-            for (let i = -1; i <= 1; i++) {
-                for (let j = -1; j <= 1; j++) {
-                    const nr = r + i, nc = c + j;
-                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc].isMine) count++;
-                }
-            }
-            return count;
-        }
-
-        window.addEventListener('resize', initGame);
         window.onload = () => {
-            initGame();
             renderSongs();
         };
     </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
-
-
