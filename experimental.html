@@ -232,7 +232,7 @@
 <body>
 
     <!-- Left Visualizer Box -->
-    <div id="left-vis-container" class="fixed left-0 z-[1001] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
+    <div id="left-vis-container" class="fixed left-0 z-[2002] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
         <div class="content-box h-full flex flex-col !mb-0">
             <span class="box-title pointer-events-auto">SPECTRUM</span>
             <div class="box-body flex-1 !p-2 bg-black/20">
@@ -242,11 +242,35 @@
     </div>
 
     <!-- Right Visualizer Box -->
-    <div id="right-vis-container" class="fixed right-0 z-[1001] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
+    <div id="right-vis-container" class="fixed right-0 z-[2002] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
         <div class="content-box h-full flex flex-col !mb-0">
             <span class="box-title pointer-events-auto">PARTICLES</span>
             <div class="box-body flex-1 !p-2 bg-black/20">
                 <canvas id="right-visualizer" class="w-full h-full opacity-70"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Player Overlay -->
+    <div id="fullscreen-player" class="fixed inset-0 z-[2001] hidden flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeFullscreen()"></div>
+        <div class="relative bg-[#2d3436] border-4 border-black p-6 md:p-8 max-w-xl w-[90%] shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col items-center text-center" style="background-image: linear-gradient(to bottom, #494636, #2d3436);">
+            <button class="absolute top-2 right-3 text-gray-400 hover:text-white text-3xl font-bold" onclick="closeFullscreen()">&times;</button>
+            
+            <div class="w-full aspect-square max-w-sm border-4 border-black mb-6 bg-black relative shadow-lg">
+                 <img id="fs-cover" src="" class="w-full h-full object-cover">
+            </div>
+            
+            <h2 id="fs-title" class="text-2xl md:text-4xl font-bold text-yellow-400 mb-2 font-sans tracking-tight drop-shadow-md">Title</h2>
+            
+            <div class="w-full h-6 bg-black border-2 border-gray-600 mb-6 cursor-pointer relative group" id="fs-progress-container">
+                 <div id="fs-progress-fill" class="h-full bg-purple-500 w-0 transition-all duration-100 ease-linear group-hover:bg-purple-400"></div>
+            </div>
+            
+            <div class="flex gap-6 w-full justify-center items-center">
+                 <button id="fs-play-btn" class="bg-yellow-400 text-black border-2 border-black px-8 py-3 font-bold uppercase hover:bg-white hover:scale-105 transition-all text-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none" onclick="togglePlayFullscreen()">
+                    <i class="fas fa-play"></i> PLAY
+                 </button>
             </div>
         </div>
     </div>
@@ -373,13 +397,15 @@
         // --- Song Data ---
         const songs = [
             {
+                id: "small-again",
                 title: "Small, Again",
                 audio: "smallagain.mp3",
                 cover: "smallagain.png",
                 duration: "2:14",
-                snippetUrl: "https://beepsmol.com/music/smallagain.html"
+                snippetUrl: "#"
             },
             {
+                id: "little-less-smol",
                 title: "A Little Less Smol",
                 audio: "#",
                 cover: "placeholder.png",
@@ -393,6 +419,7 @@
 
         let currentSongIndex = -1; // The index from the main `songs` array
         let currentPlaylistIndex = -1; // The index from the `playlist` array
+        let fullscreenIndex = -1; // Index of song currently in fullscreen view
         let isPlaylistActive = false;
 
         let audioContext, analyser, sourceNode;
@@ -419,7 +446,7 @@
                     <h3>${song.title}</h3>
                     <p class="text-slate-400 text-sm font-bold font-sans text-lg tracking-widest">${song.duration}</p>
                     
-                    <div class="progress-bar-bg">
+                    <div class="progress-bar-bg cursor-pointer" data-song-index="${index}">
                         <div id="progress-${index}" class="progress-fill"></div>
                     </div>
 
@@ -427,7 +454,7 @@
                         <button id="btn-${index}" class="btn-play" onclick="playSong(${index}, false)">
                             <i class="fas fa-play ml-1"></i> Play
                         </button>
-                        <button class="btn-fullscreen" onclick="goToSnippet(${index})" title="Fullscreen Mode">
+                        <button class="btn-fullscreen" onclick="openFullscreen(${index})" title="Fullscreen Mode">
                             <i class="fas fa-expand"></i>
                         </button>
                         <button class="btn-fullscreen" onclick="addToPlaylist(${index})" title="Add to Playlist">
@@ -436,15 +463,42 @@
                     </div>
                 </div>
             `).join('');
+
+            // Add seek functionality after rendering
+            document.querySelectorAll('.progress-bar-bg').forEach(progressBar => {
+                progressBar.addEventListener('mousedown', handleSeek);
+            });
         }
 
-        function goToSnippet(index) {
-            const song = songs[index];
-            if (song.snippetUrl === '#') {
-                alert("Fullscreen mode not available for this preview.");
-                return;
-            }
-            window.location.href = song.snippetUrl;
+        function handleSeek(e) {
+            const progressBar = e.currentTarget;
+            const songIndex = parseInt(progressBar.dataset.songIndex, 10);
+
+            // Only allow seeking on the currently playing song.
+            if (currentSongIndex !== songIndex || !currentAudio || !currentAudio.duration) return;
+
+            const seek = (event) => {
+                const rect = progressBar.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const width = progressBar.clientWidth;
+                const percentage = Math.max(0, Math.min(1, clickX / width));
+                currentAudio.currentTime = percentage * currentAudio.duration;
+            };
+
+            // Initial seek on click
+            seek(e);
+
+            const onMouseMove = (moveEvent) => {
+                seek(moveEvent);
+            };
+
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         }
 
         // --- Core Playback Logic ---
@@ -489,7 +543,12 @@
             currentAudio.ontimeupdate = () => {
                 const pb = document.getElementById(`progress-${currentSongIndex}`);
                 if (pb && currentAudio && currentAudio.duration) {
-                    pb.style.width = (currentAudio.currentTime / currentAudio.duration) * 100 + '%';
+                    const pct = (currentAudio.currentTime / currentAudio.duration) * 100 + '%';
+                    pb.style.width = pct;
+                    if(fullscreenIndex === currentSongIndex) {
+                        const fspb = document.getElementById('fs-progress-fill');
+                        if(fspb) fspb.style.width = pct;
+                    }
                 }
             };
 
@@ -497,10 +556,13 @@
                 if (isPlaylistActive) {
                     playNextInPlaylist();
                 } else {
-                    // Reset UI for the single song that just ended
                     const pb = document.getElementById(`progress-${currentSongIndex}`);
                     if (pb) pb.style.width = '0%';
-                    currentAudio.src = ''; // Clear the source instead of nulling the object
+                    if(fullscreenIndex === currentSongIndex) {
+                        const fspb = document.getElementById('fs-progress-fill');
+                        if(fspb) fspb.style.width = '0%';
+                    }
+                    currentAudio.src = ''; 
                     currentSongIndex = -1;
                     updateAllUI();
                 }
@@ -509,7 +571,6 @@
             currentAudio.onplay = () => updateAllUI();
             currentAudio.onpause = () => updateAllUI();
 
-            // Play and update UI
             currentAudio.play().catch(e => console.error("Playback failed:", e));
             if (oldSongIndex !== -1) {
                 const oldPb = document.getElementById(`progress-${oldSongIndex}`);
@@ -520,10 +581,9 @@
 
         function playNextInPlaylist() {
             if (!isPlaylistActive || playlist.length === 0) {
-                // Safety stop if playlist is empty
                 if(currentAudio) {
                     currentAudio.pause();
-                    currentAudio = null;
+                    currentAudio.src = '';
                 }
                 isPlaylistActive = false;
                 currentSongIndex = -1;
@@ -652,8 +712,78 @@
             savePlaylistState();
         }
 
+        // --- Fullscreen Logic ---
+        function openFullscreen(index) {
+            const song = songs[index];
+            fullscreenIndex = index;
+            
+            document.getElementById('fs-cover').src = song.cover;
+            document.getElementById('fs-title').innerText = song.title;
+            document.getElementById('fullscreen-player').classList.remove('hidden');
+            
+            // Set URL hash
+            if(song.id) {
+                history.replaceState(null, null, `#fullscreensong:"${song.id}"`);
+            }
+            
+            updateAllUI(); // Sync play button state
+        }
+
+        function closeFullscreen() {
+            document.getElementById('fullscreen-player').classList.add('hidden');
+            fullscreenIndex = -1;
+            
+            // Clear URL hash
+            history.replaceState(null, null, ' ');
+        }
+
+        function togglePlayFullscreen() {
+            if(fullscreenIndex === -1) return;
+            playSong(fullscreenIndex, false); // Play as single song (not playlist) by default
+        }
+
+        // Add seek for fullscreen bar
+        document.getElementById('fs-progress-container').addEventListener('mousedown', (e) => {
+            if (currentSongIndex !== fullscreenIndex || !currentAudio || !currentAudio.duration) return;
+            
+            const progressBar = e.currentTarget;
+            const seek = (event) => {
+                const rect = progressBar.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const width = progressBar.clientWidth;
+                const percentage = Math.max(0, Math.min(1, clickX / width));
+                currentAudio.currentTime = percentage * currentAudio.duration;
+            };
+            seek(e);
+            
+            const onMouseMove = (moveEvent) => seek(moveEvent);
+            const onMouseUp = () => {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        function checkHash() {
+            const hash = window.location.hash;
+            const prefix = '#fullscreensong:"';
+            if (hash.startsWith(prefix) && hash.endsWith('"')) {
+                const id = hash.substring(prefix.length, hash.length - 1);
+                const index = songs.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    openFullscreen(index);
+                }
+            }
+        }
+
         // --- UI & State Sync ---
         function updateAllUI() {
+            // Update Fullscreen Play Button
+            const fsPlayBtn = document.getElementById('fs-play-btn');
+            const isFSPlaying = currentSongIndex === fullscreenIndex && !currentAudio.paused;
+            fsPlayBtn.innerHTML = isFSPlaying ? '<i class="fas fa-pause"></i> PAUSE' : '<i class="fas fa-play"></i> PLAY';
+
             songs.forEach((song, index) => {
                 const btn = document.getElementById(`btn-${index}`);
                 const card = document.getElementById(`card-${index}`);
@@ -805,6 +935,7 @@
         window.onload = () => {
             renderSongs();
             loadPlaylistState(); // Load saved playlist
+            checkHash(); // Check for fullscreen link
 
             // --- Visualizer Init ---
             leftVisCanvas = document.getElementById('left-visualizer');
@@ -823,6 +954,611 @@
                 if (leftContainer) {
                     leftContainer.style.top = `${navHeight}px`;
                     leftContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+
+                visualizerLoop();
+            } catch (e) {
+                console.error("Web Audio API is not supported.", e);
+            }
+
+            // Add animation style for notifications
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fade-in-out {
+                    0% { opacity: 0; transform: translateX(100%); }
+                    15% { opacity: 1; transform: translateX(0); }
+                    85% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(100%); }
+                }
+                .animate-fade-in-out { animation: fade-in-out 3s ease-in-out forwards; }
+            `;
+            document.head.appendChild(style);
+        };
+    </script>
+    <script data-goatcounter="https://beepsmol.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
+</html>
+</html>
+</html>
+</html>
                 }
                 if (rightContainer) { // This block was also malformed
                     rightContainer.style.top = `${navHeight}px`;
