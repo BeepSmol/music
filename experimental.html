@@ -75,7 +75,7 @@
             margin: 40px auto;
             padding: 0 20px;
             position: relative;
-            z-index: 10;
+            z-index: 1002;
             pointer-events: none; 
         }
 
@@ -83,10 +83,11 @@
 
         .content-box {
             background: var(--panel-bg);
-            border: var(--indie-border);
+            border: ridge rgb(0, 0, 0) 6px;
             margin-bottom: 30px;
             position: relative;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            box-shadow: 0 0 10px 12.5px rgba(0,0,0,0.3);
+            background-image: linear-gradient(to bottom, #494636, #2d3436);
         }
 
         .box-title {
@@ -230,8 +231,25 @@
 </head>
 <body>
 
-    <canvas id="left-visualizer" class="fixed top-0 left-0 h-full z-0 pointer-events-none opacity-60"></canvas>
-    <canvas id="right-visualizer" class="fixed top-0 right-0 h-full z-0 pointer-events-none opacity-60"></canvas>
+    <!-- Left Visualizer Box -->
+    <div id="left-vis-container" class="fixed left-0 z-[1001] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
+        <div class="content-box h-full flex flex-col !mb-0">
+            <span class="box-title pointer-events-auto">SPECTRUM</span>
+            <div class="box-body flex-1 !p-2 bg-black/20">
+                <canvas id="left-visualizer" class="w-full h-full opacity-70"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Visualizer Box -->
+    <div id="right-vis-container" class="fixed right-0 z-[1001] p-5 pointer-events-none hidden md:block" style="width: 280px; box-sizing: border-box;">
+        <div class="content-box h-full flex flex-col !mb-0">
+            <span class="box-title pointer-events-auto">PARTICLES</span>
+            <div class="box-body flex-1 !p-2 bg-black/20">
+                <canvas id="right-visualizer" class="w-full h-full opacity-70"></canvas>
+            </div>
+        </div>
+    </div>
 
     <style>
     :root {
@@ -482,7 +500,7 @@
                     // Reset UI for the single song that just ended
                     const pb = document.getElementById(`progress-${currentSongIndex}`);
                     if (pb) pb.style.width = '0%';
-                    currentAudio = null;
+                    currentAudio.src = ''; // Clear the source instead of nulling the object
                     currentSongIndex = -1;
                     updateAllUI();
                 }
@@ -534,7 +552,8 @@
                     playSong(playlist[0], true, 0);
                 } else {
                     isPlaylistActive = false;
-                    currentAudio = null;
+                    currentAudio.pause(); // Pause it
+                    currentAudio.src = ''; // Clear the source
                     currentSongIndex = -1;
                     currentPlaylistIndex = -1;
                     updateAllUI();
@@ -577,8 +596,8 @@
             if (confirm("Are you sure you want to clear the entire playlist?")) {
                 playlist = [];
                 if (isPlaylistActive) {
-                    currentAudio.pause();
-                    currentAudio = null;
+                    currentAudio.pause(); // Pause it
+                    currentAudio.src = ''; // Clear the source
                     isPlaylistActive = false;
                     currentSongIndex = -1;
                     currentPlaylistIndex = -1;
@@ -742,15 +761,15 @@
             const avg = Math.sqrt(sum / bufferLength);
 
             if (avg > 8 && particles.length < 100) {
-                for(let i=0; i < Math.floor(avg / 8); i++) {
-                    particles.push({ x: 0, y: Math.random() * canvas.height, vx: Math.random() * 2 + avg * 0.1, vy: (Math.random() - 0.5) * 2, life: 1.0, size: Math.random() * 2 + 1, hue: 250 + Math.random() * 60 });
+                for(let i=0; i < Math.floor(avg / 6); i++) {
+                    particles.push({ x: canvas.width, y: Math.random() * canvas.height, vx: -(Math.random() * 2 + avg * 0.1), vy: (Math.random() - 0.5) * 2, life: 1.0, size: Math.random() * 2 + 1, hue: 250 + Math.random() * 60 });
                 }
             }
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.x += p.vx; p.y += p.vy; p.life -= 0.015;
-                if (p.life <= 0 || p.x > canvas.width) { particles.splice(i, 1); } 
+                if (p.life <= 0 || p.x < 0) { particles.splice(i, 1); } 
                 else { ctx.beginPath(); ctx.fillStyle = `hsla(${p.hue}, 100%, 70%, ${p.life})`; ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); }
             }
         }
@@ -795,23 +814,40 @@
                 rightVisCtx = rightVisCanvas.getContext('2d');
             }
             
-            // Resize canvases
-            function resizeVisualizers() {
-                if(leftVisCanvas) { leftVisCanvas.width = 300; leftVisCanvas.height = window.innerHeight; }
-                if(rightVisCanvas) { rightVisCanvas.width = 300; rightVisCanvas.height = window.innerHeight; }
-            }
-            window.addEventListener('resize', resizeVisualizers);
-            resizeVisualizers();
+            // Layout and Resize Visualizers
+            function layoutVisualizers() {
+                const navHeight = document.querySelector('.nav-wrapper').offsetHeight;
+                const rightContainer = document.getElementById('right-vis-container');
+                const leftContainer = document.getElementById('left-vis-container'); // This was missing
 
-            try {
+                if (leftContainer) {
+                    leftContainer.style.top = `${navHeight}px`;
+                    leftContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                if (rightContainer) { // This block was also malformed
+                    rightContainer.style.top = `${navHeight}px`;
+                    rightContainer.style.height = `calc(100vh - ${navHeight}px)`;
+                }
+                // Resize canvas to fit new parent dimensions
+                if (leftVisCanvas && leftVisCanvas.parentElement) {
+                    leftVisCanvas.width = leftVisCanvas.parentElement.clientWidth;
+                    leftVisCanvas.height = leftVisCanvas.parentElement.clientHeight;
+                }
+                if (rightVisCanvas && rightVisCanvas.parentElement) {
+                    rightVisCanvas.width = rightVisCanvas.parentElement.clientWidth;
+                    rightVisCanvas.height = rightVisCanvas.parentElement.clientHeight;
+                }
+            }
+            window.addEventListener('resize', layoutVisualizers);
+            layoutVisualizers(); // Initial layout
+            
+            try { // This try block was malformed
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioContext = new AudioContext();
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 512;
                 frequencyData = new Uint8Array(analyser.frequencyBinCount);
-                timeDomainData = new Uint8Array(analyser.frequencyBinCount);
-
-                // Create source only once
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
                 sourceNode = audioContext.createMediaElementSource(currentAudio);
                 sourceNode.connect(analyser).connect(audioContext.destination);
 
