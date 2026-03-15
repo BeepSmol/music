@@ -528,14 +528,6 @@
                 return;
             }
 
-            // Initialize audio context on first play
-            initAudioContext();
-
-            // Resume audio context on user interaction
-            if (audioContext && audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-
             // Check if we are clicking the same song in the SAME context (Playlist vs Main List)
             // This fixes the bug where clicking "Play" on the playlist wouldn't takeover if the song was already playing from the main list
             const isSameContext = (isPlaylistActive === fromPlaylist) && 
@@ -557,6 +549,13 @@
             
             // Set new state
             currentAudio.src = song.audio;
+
+            // Initialize audio context on first play, and resume if suspended
+            initAudioContext();
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
             currentSongIndex = songIndex;
             isPlaylistActive = fromPlaylist;
             currentPlaylistIndex = playlistIdx;
@@ -735,7 +734,7 @@
         }
 
         // --- Fullscreen Logic ---
-        function openFullscreen(index) {
+        function openFullscreen(index, fromUrl = false) {
             const song = songs[index];
             fullscreenIndex = index;
             
@@ -743,20 +742,30 @@
             document.getElementById('fs-title').innerText = song.title;
             document.getElementById('fullscreen-player').classList.remove('hidden');
             
-            // Set URL hash
-            if(song.id) {
-                history.replaceState(null, null, `#fullscreensong:"${song.id}"`);
+            // Set URL search param, but only if not triggered by URL load itself
+            if(song.id && !fromUrl) {
+                const url = new URL(window.location);
+                url.searchParams.set('song', song.id);
+                history.pushState({ songId: song.id }, '', url);
             }
             
             updateAllUI(); // Sync play button state
         }
 
         function closeFullscreen() {
-            document.getElementById('fullscreen-player').classList.add('hidden');
-            fullscreenIndex = -1;
-            
-            // Clear URL hash
-            history.replaceState(null, null, ' ');
+            // If we are in a state pushed by openFullscreen, going back will trigger onpopstate
+            // which will then close the modal via checkUrlForSong.
+            if (history.state && history.state.songId) {
+                history.back();
+            } else {
+                // If we loaded directly to the song URL, there's no previous state to go back to.
+                // So, we manually close the modal and clean up the URL.
+                document.getElementById('fullscreen-player').classList.add('hidden');
+                fullscreenIndex = -1;
+                const url = new URL(window.location);
+                url.searchParams.delete('song');
+                history.replaceState({}, '', url); // Use replaceState to not create a new history entry
+            }
         }
 
         function togglePlayFullscreen() {
@@ -787,15 +796,19 @@
             document.addEventListener('mouseup', onMouseUp);
         });
 
-        function checkHash() {
-            const hash = window.location.hash;
-            const prefix = '#fullscreensong:"';
-            if (hash.startsWith(prefix) && hash.endsWith('"')) {
-                const id = hash.substring(prefix.length, hash.length - 1);
-                const index = songs.findIndex(s => s.id === id);
-                if (index !== -1) {
-                    openFullscreen(index);
+        function checkUrlForSong() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const songId = urlParams.get('song');
+
+            if (songId) {
+                const index = songs.findIndex(s => s.id === songId);
+                if (index !== -1 && document.getElementById('fullscreen-player').classList.contains('hidden')) {
+                    openFullscreen(index, true);
                 }
+            } else {
+                // If no song in URL, ensure modal is closed
+                document.getElementById('fullscreen-player').classList.add('hidden');
+                fullscreenIndex = -1;
             }
         }
 
@@ -957,7 +970,8 @@
         window.onload = () => {
             renderSongs();
             loadPlaylistState(); // Load saved playlist
-            checkHash(); // Check for fullscreen link
+            checkUrlForSong(); // Check for fullscreen link on initial load
+            window.onpopstate = checkUrlForSong; // Handle back/forward navigation
 
             // --- Visualizer Init ---
             leftVisCanvas = document.getElementById('left-visualizer');
