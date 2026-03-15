@@ -970,8 +970,10 @@
         window.onload = () => {
             renderSongs();
             loadPlaylistState(); // Load saved playlist
-            checkUrlForSong(); // Check for fullscreen link on initial load
             window.onpopstate = checkUrlForSong; // Handle back/forward navigation
+            // Use a small timeout to ensure the DOM is fully ready before checking the URL.
+            // This can help prevent race conditions on some browsers.
+            setTimeout(() => checkUrlForSong(), 100);
 
             // --- Visualizer Init ---
             leftVisCanvas = document.getElementById('left-visualizer');
