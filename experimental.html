@@ -420,6 +420,7 @@
         let currentSongIndex = -1; // The index from the main `songs` array
         let currentPlaylistIndex = -1; // The index from the `playlist` array
         let fullscreenIndex = -1; // Index of song currently in fullscreen view
+        let isAudioContextInitialized = false;
         let isPlaylistActive = false;
 
         let audioContext, analyser, sourceNode;
@@ -501,6 +502,24 @@
             document.addEventListener('mouseup', onMouseUp);
         }
 
+        function initAudioContext() {
+            if (isAudioContextInitialized) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                frequencyData = new Uint8Array(analyser.frequencyBinCount);
+                timeDomainData = new Uint8Array(analyser.frequencyBinCount);
+                sourceNode = audioContext.createMediaElementSource(currentAudio);
+                sourceNode.connect(analyser).connect(audioContext.destination);
+                isAudioContextInitialized = true;
+                visualizerLoop(); // Start the visualizer loop once context is ready
+            } catch (e) {
+                console.error("Web Audio API is not supported or failed to initialize.", e);
+            }
+        }
+
         // --- Core Playback Logic ---
         function playSong(songIndex, fromPlaylist = false, playlistIdx = -1) {
             const song = songs[songIndex];
@@ -508,6 +527,9 @@
                 alert("This track is not available yet!");
                 return;
             }
+
+            // Initialize audio context on first play
+            initAudioContext();
 
             // Resume audio context on user interaction
             if (audioContext && audioContext.state === 'suspended') {
@@ -935,6 +957,7 @@
         window.onload = () => {
             renderSongs();
             loadPlaylistState(); // Load saved playlist
+            window.addEventListener('hashchange', checkHash); // Also listen for in-page hash changes
             checkHash(); // Check for fullscreen link
 
             // --- Visualizer Init ---
@@ -971,21 +994,6 @@
             }
             window.addEventListener('resize', layoutVisualizers);
             layoutVisualizers(); // Initial layout
-            
-            try { // This try block was malformed
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new AudioContext();
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 512;
-                frequencyData = new Uint8Array(analyser.frequencyBinCount);
-                timeDomainData = new Uint8Array(analyser.frequencyBinCount); // This was missing
-                sourceNode = audioContext.createMediaElementSource(currentAudio);
-                sourceNode.connect(analyser).connect(audioContext.destination);
-
-                visualizerLoop();
-            } catch (e) {
-                console.error("Web Audio API is not supported.", e);
-            }
 
             // Add animation style for notifications
             const style = document.createElement('style');
